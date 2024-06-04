@@ -5,9 +5,9 @@
 #   2. 학습된 MNIST 분류 모델 파일 불러와 사용하기
 #   3. 문장 분류를 위한 CNN 모델
 #   4. 학습된 CNN 분류 모델 파일 불러와 사용하기
-#   5.
-#   6.
-
+#   5. RNN 모델
+#   6. LSTM 모델
+#   7. 양방향 LSTM 모델
 
 
 # 1. MNIST 분류모델 학습
@@ -215,49 +215,264 @@
 # # 만은 실험을 통해 최적의 하이퍼파라미터를 찾아야 한다.
 
 
-
-# 4. 학습된 CNN 분류 모델 파일 불러와 사용하기
-import tensorflow as tf
-import pandas as pd
-from tensorflow.keras.models import Model, load_model
-from tensorflow.keras import preprocessing
-
-# 데이터 읽어오기
-train_file = "../../ChatbotData.csv"
-data = pd.read_csv(train_file, delimiter=',')
-features = data['Q'].tolist()
-labels = data['label'].tolist()
-
-# 단어 인덱스 시퀀스 벡터
-corpus = [preprocessing.text.text_to_word_sequence(text) for text in features]
-tokenizer = preprocessing.text.Tokenizer()
-tokenizer.fit_on_texts(corpus)
-sequences = tokenizer.texts_to_sequences(corpus)
-
-MAX_SEQ_LEN = 15
-padded_seqs = preprocessing.sequence.pad_sequences(sequences, maxlen=MAX_SEQ_LEN, padding='post')
-
-ds = tf.data.Dataset.from_tensor_slices((padded_seqs, labels))
-ds = ds.shuffle(len(features))
-test_ds = ds.take(2000).batch(20)
-
-model = load_model('cnn_model.h5')
-model.summary()
-model.evaluate(test_ds, verbose=2)
-
-print('단어 시퀀스 : ', corpus[10212])
-print('단어 인덱스 시퀀스 : ', padded_seqs[10212])
-print('문장 분류(정답) : ', labels[10212])
-
-picks = [10212]
-predict = model.predict(padded_seqs[picks])
-predict_class = tf.math.argmax(predict, axis=1)
-print('감정 예측 점수 : ', predict)
-print('감정 예측 클래스 : ', predict_class.numpy())
-
+# # 4. 학습된 CNN 분류 모델 파일 불러와 사용하기
+# import tensorflow as tf
+# import pandas as pd
+# from tensorflow.keras.models import Model, load_model
+# from tensorflow.keras import preprocessing
+#
+# # 데이터 읽어오기
+# train_file = "../../ChatbotData.csv"
+# data = pd.read_csv(train_file, delimiter=',')
+# features = data['Q'].tolist()
+# labels = data['label'].tolist()
+#
+# # 단어 인덱스 시퀀스 벡터
+# corpus = [preprocessing.text.text_to_word_sequence(text) for text in features]
+# tokenizer = preprocessing.text.Tokenizer()
+# tokenizer.fit_on_texts(corpus)
+# sequences = tokenizer.texts_to_sequences(corpus)
+#
+# MAX_SEQ_LEN = 15
+# padded_seqs = preprocessing.sequence.pad_sequences(sequences, maxlen=MAX_SEQ_LEN, padding='post')
+#
+# ds = tf.data.Dataset.from_tensor_slices((padded_seqs, labels))
+# ds = ds.shuffle(len(features))
+# test_ds = ds.take(2000).batch(20)
+#
+# model = load_model('cnn_model.h5')
+# model.summary()
+# model.evaluate(test_ds, verbose=2)
+#
+# print('단어 시퀀스 : ', corpus[10212])
+# print('단어 인덱스 시퀀스 : ', padded_seqs[10212])
+# print('문장 분류(정답) : ', labels[10212])
+#
+# picks = [10212]
+# predict = model.predict(padded_seqs[picks])
+# predict_class = tf.math.argmax(predict, axis=1)
+# print('감정 예측 점수 : ', predict)
+# print('감정 예측 클래스 : ', predict_class.numpy())
 
 
-# 5. 
+# # 5. RNN 모델
+# import numpy as np
+# import matplotlib.pyplot as plt
+# from tensorflow.keras.models import Sequential
+# from tensorflow.keras.layers import Flatten, Dense, LSTM, SimpleRNN
+#
+#
+# def split_sequence(sequence, step):
+#     x, y = list(), list()
+#
+#     for i in range(len(sequence)):
+#         end_idx = i + step
+#         if end_idx > len(sequence) - 1:
+#             break
+#
+#         seq_x, seq_y = sequence[i:end_idx], sequence[end_idx]
+#         x.append(seq_x)
+#         y.append(seq_y)
+#
+#     return np.array(x), np.array(y)
+#
+#
+# # sin 함수 학습 데이터
+# x = [i for i in np.arange(start=-10, stop=10, step=0.1)]
+# train_y = [np.sin(i) for i in x]
+#
+# # 하이퍼 파라미터
+# n_timesteps = 15
+# n_features = 1
+#
+# # 시퀀스 나누기
+# # train_x.shape => (samples, timesteps)
+# # train_y.shape => (samples)
+# train_x, train_y = split_sequence(train_y, step=n_timesteps)
+# print('shape x:{} / y:{}'.format(train_x.shape, train_y.shape))
+#
+# # RNN 입력 벡터 크기를 맞추기 위해 벡터 차원 크기 변경
+# # reshape from [samples, timesteps] into [samples, timesteps, features]
+# train_x = train_x.reshape(train_x.shape[0], train_x.shape[1], n_features)
+# print('train_x.shape = {}'.format(train_x.shape))
+# print('train_y.shape = {}'.format(train_y.shape))
+#
+# # RNN 모델 정의
+# model = Sequential()
+# model.add(SimpleRNN(units=100, return_sequences=False, input_shape=(n_timesteps, n_features)))
+# model.add(Dense(1))
+# model.compile(optimizer='adam', loss='mse')
+#
+# # 모델 학습
+# np.random.seed(0)
+# from tensorflow.keras.callbacks import EarlyStopping
+# early_stopping = EarlyStopping(
+#     monitor='loss',
+#     patience=5,
+#     mode='auto'
+# )
+# history = model.fit(train_x, train_y, epochs=1000, callbacks=[early_stopping])
+#
+# # loss 그래프 생성
+# plt.plot(history.history['loss'], label='loss')
+# plt.legend(loc='upper right')
+# plt.show()
+#
+# # 테스트 데이터셋 생성
+# test_x = np.arange(10, 20, 0.1)
+# calc_y = np.cos(test_x)
+#
+# # RNN 모델 예측 및 로그 저장
+# test_y=calc_y[:n_timesteps]
+# for i in range(len(test_x) - n_timesteps):
+#     net_input = test_y[i : i + n_timesteps]
+#     net_input = net_input.reshape((1, n_timesteps, n_features))
+#     train_y = model.predict(net_input, verbose=0)
+#     print(test_y.shape, train_y.shape, i, i+n_timesteps)
+#     test_y = np.append(test_y, train_y)
+#
+# # 예측 결과 그래프 그리기
+# plt.plot(test_x, calc_y, label='ground truth', color='orange')
+# plt.plot(test_x, test_y, label='predictions', color='blue')
+#
+# plt.legend(loc='upper left')
+# plt.ylim(-2, 2)
+# plt.show()
+
+
+# 6. LSTM 모델
+import numpy as np
+import matplotlib.pyplot as plt
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Flatten, Dense, LSTM
+
+
+def split_sequence(sequence, step):
+    x, y = list(), list()
+
+    for i in range(len(sequence)):
+        end_idx = i + step
+        if end_idx > len(sequence) - 1:
+            break
+
+        seq_x, seq_y = sequence[i:end_idx], sequence[end_idx]
+        x.append(seq_x)
+        y.append(seq_y)
+
+    return np.array(x), np.array(y)
+
+
+# sin 함수 학습 데이터
+x = [i for i in np.arange(start=-10, stop=10, step=0.1)]
+train_y = [np.sin(i) for i in x]
+
+# 하이퍼 파라미터
+n_timesteps = 15
+n_features = 1
+
+# 시퀀스 나누기
+# train_x.shape => (samples, timesteps)
+# train_y.shape => (samples)
+train_x, train_y = split_sequence(train_y, step=n_timesteps)
+print('shape x:{} / y:{}'.format(train_x.shape, train_y.shape))
+
+# LSTM 입력 벡터 크기를 맞추기 위해 벡터 차원 크기 변경
+# reshape from [samples, timesteps] into [samples, timesteps, features]
+train_x = train_x.reshape(train_x.shape[0], train_x.shape[1], n_features)
+print('train_x.shape = {}'.format(train_x.shape))
+print('train_y.shape = {}'.format(train_y.shape))
+
+# LSTM 모델 정의
+model = Sequential()
+model.add(LSTM(units=10, return_sequences=False, input_shape=(n_timesteps, n_features)))
+model.add(Dense(1))
+model.compile(optimizer='adam', loss='mse')
+
+# 모델 학습
+np.random.seed(0)
+from tensorflow.keras.callbacks import EarlyStopping
+
+early_stopping = EarlyStopping(
+    monitor='loss',
+    patience=5,
+    mode='auto'
+)
+history = model.fit(train_x, train_y, epochs=1000, callbacks=[early_stopping])
+
+# loss 그래프 생성
+plt.plot(history.history['loss'], label='loss')
+plt.legend(loc='upper right')
+plt.show()
+
+# 테스트 데이터셋 생성
+test_x = np.arange(10, 20, 0.1)
+calc_y = np.cos(test_x)
+
+# RNN 모델 예측 및 로그 저장
+test_y = calc_y[:n_timesteps]
+for i in range(len(test_x) - n_timesteps):
+    net_input = test_y[i: i + n_timesteps]
+    net_input = net_input.reshape((1, n_timesteps, n_features))
+    train_y = model.predict(net_input, verbose=0)
+    print(test_y.shape, train_y.shape, i, i + n_timesteps)
+    test_y = np.append(test_y, train_y)
+
+# 예측 결과 그래프 그리기
+plt.plot(test_x, calc_y, label='ground truth', color='orange')
+plt.plot(test_x, test_y, label='predictions', color='blue')
+
+plt.legend(loc='upper left')
+plt.ylim(-2, 2)
+plt.show()
+
+# 7. 양방향 LSTM 모델
+import numpy as np
+from random import random
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Bidirectional, Dense, LSTM, TimeDistributed
+
+
+# 시퀀스 생성
+def get_sequence(n_timesteps):
+    # 0~1 사이의 랜덤 시퀀스 생성
+    X = np.array([random() for _ in range(n_timesteps)])
+
+    # 클래스 분류 기준
+    limit = n_timesteps / 4.0
+
+    # 누적합 시퀀스에서 클래스 결정
+    # 누적합 항목이 limit 보다 작은 경우 0, 아닌 경우 1로 분류
+    y = np.array([0 if x < limit else 1 for x in np.cumsum(X)])
+
+    # LSTM 입력을 위해 3차원 텐서 형태로 변경
+    X = X.reshape(1, n_timesteps, 1)
+    y = y.reshape(1, n_timesteps, 1)
+    return X, y
+
+# 하이퍼파라미터 정의
+n_units = 20
+n_timesteps = 4
+
+# 양방향 LSTM 모델 정의
+model = Sequential()
+model.add(Bidirectional(LSTM(n_units, return_sequences=True, input_shape=(n_timesteps,1))))
+model.add(TimeDistributed(Dense(1, activation='sigmoid')))
+model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+# 모델 학습
+# 에포크마다 학습 데이터를 생성해서 학습
+for epoch in range(1000):
+    X, y = get_sequence(n_timesteps)
+    model.fit(X, y, epochs=1, batch_size=1, verbose=2)
+
+# 모델 평가
+X, y = get_sequence(n_timesteps)
+yhat = model.predict_classes(X, verbose=0)
+for i in range(n_timesteps):
+    print('실젯값 : ', y[0, i], '예측값 : ', yhat[0, i])
+
+
+
 
 # Chapter .  (p. ~ p.)
 
